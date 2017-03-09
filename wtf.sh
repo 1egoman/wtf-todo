@@ -1,24 +1,39 @@
 # WTF: a terminal based Jira client.
 # By Ryan Gaus.
 
-BASENAME="https://jira.density.io"
+BASENAME="https://jira.density.io" # Where is the api?
+EDITOR="${EDITOR:-${VISUAL:-vi}}" # How to edit config file
+CONFIG_FILE_LOCATION="$HOME/.wtf-todo.config.json" # Where is the config file?
 
-ME="ryan"
-AUTH="-u $ME:foo"
+# If config file doesn't exist, make it and let the user input their username and password.
+if [ ! -f "$CONFIG_FILE_LOCATION" ]; then
+  echo '{
+    "username": "ENTER YOUR JIRA USERNAME HERE",
+    "password": "ENTER YOUR JIRA PASSWORD HERE"
+  }' > $CONFIG_FILE_LOCATION
+
+  # Open editor so user can update it.
+  $EDITOR $CONFIG_FILE_LOCATION
+fi
+
+# Read options from config file
+USERNAME="$(cat $CONFIG_FILE_LOCATION | jq .username | sed 's/"//g')"
+PASSWORD="$(cat $CONFIG_FILE_LOCATION | jq .password | sed 's/"//g')"
+AUTH="-u $USERNAME:$PASSWORD"
 
 # Given an task id and a state, transition the given task to that state.
 function move_task_to_state {
-  task_id="$1"
-  state="$2"
+  local task_id="$1"
+  local state="$2"
 
   # Pull down all states
-  transitions=$(curl --silent $AUTH \
+  local transitions=$(curl --silent $AUTH \
     -H "Content-Type: application/json" \
     "$BASENAME/rest/api/2/issue/$task_id/transitions"
   )
 
   # Find the id of the state to move the given item to
-  transition_id=$(echo $transitions |
+  local transition_id=$(echo $transitions |
     jq ".transitions[] | select(.name | contains(\"$state\")) | .id" |
     sed 's/"//g'
   )
@@ -35,11 +50,11 @@ function move_task_to_state {
 case "$1" in
   # Show all tasks to work on
   # ie, `wtf todo`
-  todo|ls|list)
+  ""|todo|ls|list)
     DATA="$(
       curl --silent $AUTH \
       -H 'Content-Type: application/json' \
-      "$BASENAME/rest/api/2/search?jql=assignee=$ME")"
+      "$BASENAME/rest/api/2/search?jql=assignee=$USERNAME")"
 
       echo "WTF todo?"
       echo
@@ -63,7 +78,7 @@ case "$1" in
 
   # Show info for a given task.
   # ie, `wtf into EMB-60`
-  info)
+  i|info)
     DATA="$(
       curl --silent $AUTH \
       -H 'Content-Type: application/json' \
@@ -87,22 +102,27 @@ case "$1" in
     echo "Priority: $PRIORITY"
     ;;
 
-  undo)
+  # Move a given task to another state.
+  u|undo)
     move_task_to_state $2 "To Do"
     ;;
-  start)
+  s|start)
     move_task_to_state $2 "In Progress"
     ;;
-  "done"|finish)
+  d|"done"|finish)
     move_task_to_state $2 "QA"
     ;;
-  help)
+
+  # Help information
+  h|help)
     echo "USAGE: wtf [SUBCOMMAND] [ID]"
     echo
     echo "wtf todo - get a list of all tasks assigned to you."
     echo "wtf info ID - get task info"
     echo "wtf start ID - start working on task ID"
     echo "wtf done ID - finish working on task ID"
+    echo
+    echo "More info: https://github.com/1egoman/wtf-todo"
     ;;
   *)
     echo "WTF - a tool to tell you what to work on today." >&2
