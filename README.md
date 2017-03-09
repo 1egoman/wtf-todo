@@ -44,3 +44,6 @@ moves a task to a given state given a task id and a state name. Since state name
 organisation, the script needs to be modified to work with other organisations unless you copy the
 names that I've hard-coded. Feel free to add more cases to the switch to customize your own version
 of the tool.
+
+## Installing
+After cloning, symlink `wtf.sh` to `/usr/local/bin/wtf`.
