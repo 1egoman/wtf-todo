@@ -1,3 +1,6 @@
+# WTF: a terminal based Jira client.
+# By Ryan Gaus.
+
 BASENAME="https://jira.density.io"
 
 ME="ryan"
