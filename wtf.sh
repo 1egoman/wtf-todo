@@ -1,7 +1,6 @@
 # WTF: a terminal based Jira client.
 # By Ryan Gaus.
 
-BASENAME="https://jira.density.io" # Where is the api?
 EDITOR="${EDITOR:-${VISUAL:-vi}}" # How to edit config file
 CONFIG_FILE_LOCATION="$HOME/.wtf-todo.config.json" # Where is the config file?
 
@@ -9,16 +8,19 @@ CONFIG_FILE_LOCATION="$HOME/.wtf-todo.config.json" # Where is the config file?
 if [ ! -f "$CONFIG_FILE_LOCATION" ]; then
   echo '{
     "username": "ENTER YOUR JIRA USERNAME HERE",
-    "password": "ENTER YOUR JIRA PASSWORD HERE"
+    "password": "ENTER YOUR JIRA PASSWORD HERE",
+    "basename": "ENTER THE URL OF YOUR JIRA INSTANCE, WITHOUT A TRAILING SLASH"
   }' > $CONFIG_FILE_LOCATION
 
   # Open editor so user can update it.
   $EDITOR $CONFIG_FILE_LOCATION
+  echo "Config file saved in $CONFIG_FILE_LOCATION. Feel free to edit later."
 fi
 
 # Read options from config file
 USERNAME="$(cat $CONFIG_FILE_LOCATION | jq .username | sed 's/"//g')"
 PASSWORD="$(cat $CONFIG_FILE_LOCATION | jq .password | sed 's/"//g')"
+BASENAME="$(cat $CONFIG_FILE_LOCATION | jq .basename | sed 's/"//g')"
 AUTH="-u $USERNAME:$PASSWORD"
 
 # Given an task id and a state, transition the given task to that state.
@@ -113,12 +115,23 @@ case "$1" in
     move_task_to_state $2 "QA"
     ;;
 
+  o|open)
+    if which open > /dev/null; then
+      open $BASENAME/browse/$2
+    elif which xdg-open > /dev/null; then
+      xdg-open $BASENAME/browse/$2
+    else
+      echo "Can't find either open or xdg-open, please install one!"
+    fi
+    ;;
+
   # Help information
   h|help)
     echo "USAGE: wtf [SUBCOMMAND] [ID]"
     echo
     echo "wtf todo - get a list of all tasks assigned to you."
     echo "wtf info ID - get task info"
+    echo "wtf open ID - open task ID in the browser"
     echo "wtf start ID - start working on task ID"
     echo "wtf done ID - finish working on task ID"
     echo
