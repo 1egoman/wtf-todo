@@ -115,6 +115,7 @@ case "$1" in
     move_task_to_state $2 "QA"
     ;;
 
+  # Open a task in the web browser
   o|open)
     if which open > /dev/null; then
       open $BASENAME/browse/$2
