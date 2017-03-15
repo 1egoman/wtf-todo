@@ -18,9 +18,9 @@ if [ ! -f "$CONFIG_FILE_LOCATION" ]; then
 fi
 
 # Read options from config file
-USERNAME="$(cat $CONFIG_FILE_LOCATION | jq .username | sed 's/"//g')"
-PASSWORD="$(cat $CONFIG_FILE_LOCATION | jq .password | sed 's/"//g')"
-BASENAME="$(cat $CONFIG_FILE_LOCATION | jq .basename | sed 's/"//g')"
+USERNAME="$(cat $CONFIG_FILE_LOCATION | jq -r .username)"
+PASSWORD="$(cat $CONFIG_FILE_LOCATION | jq -r .password)"
+BASENAME="$(cat $CONFIG_FILE_LOCATION | jq -r .basename)"
 AUTH="-u $USERNAME:$PASSWORD"
 
 # Given an task id and a state, transition the given task to that state.
@@ -36,8 +36,7 @@ function move_task_to_state {
 
   # Find the id of the state to move the given item to
   local transition_id=$(echo $transitions |
-    jq ".transitions[] | select(.name | contains(\"$state\")) | .id" |
-    sed 's/"//g'
+    jq -r ".transitions[] | select(.name | contains(\"$state\")) | .id"
   )
 
   echo "Transition item $task_id to $state ($transition_id)"
@@ -86,12 +85,12 @@ case "$1" in
       -H 'Content-Type: application/json' \
       "$BASENAME/rest/api/2/issue/$2")"
 
-    TITLE=$(echo $DATA | jq .fields.summary | sed 's/"//g')
-    PROJECT=$(echo $DATA | jq .fields.project.key | sed 's/"//g')
-    CREATOR=$(echo $DATA | jq .fields.creator.name | sed 's/"//g')
-    REPORTER=$(echo $DATA | jq .fields.reporter.name | sed 's/"//g')
-    PRIORITY=$(echo $DATA | jq .fields.priority.name | sed 's/"//g')
-    STATUS=$(echo $DATA | jq .fields.status.name | sed 's/"//g')
+    TITLE=$(echo $DATA | jq -r .fields.summary)
+    PROJECT=$(echo $DATA | jq -r .fields.project.key)
+    CREATOR=$(echo $DATA | jq -r .fields.creator.name)
+    REPORTER=$(echo $DATA | jq -r .fields.reporter.name)
+    PRIORITY=$(echo $DATA | jq -r .fields.priority.name)
+    STATUS=$(echo $DATA | jq -r .fields.status.name)
 
     echo
     echo "$(tput setaf 3)* $TITLE$(tput sgr0)"
@@ -124,6 +123,62 @@ case "$1" in
     else
       echo "Can't find either open or xdg-open, please install one!"
     fi
+    ;;
+
+  c|create)
+    PROJECTS="$(
+      curl --silent $AUTH \
+      -H 'Content-Type: application/json' \
+      "$BASENAME/rest/api/2/issue/createmeta")"
+
+    echo $PROJECTS |
+      jq -r '.projects | map([.key, .name] | join(" ")) | join("\n")' |
+      nl -v 0
+    printf "Create issue in project: "; read proj_id
+    # if ! [[ "$proj_id" =~ '^[0-9]*$' ]]; then
+    #   echo "Didn't enter project index!" >&2
+    #   exit 1
+    # fi
+
+    PROJECT="$(echo $PROJECTS | jq .projects[$proj_id])"
+
+    echo $PROJECT |
+      jq -r '.issuetypes | map(.name) | join("\n")' |
+      nl -v 0
+    printf "Issue Type: "; read type_id
+    # if ! [[ "$type_id" =~ '^[0-9]*$' ]]; then
+    #   echo "Didn't enter issue type index!" >&2
+    #   exit 1
+    # fi
+    ISSUE_TYPE="$(echo $PROJECT | jq -r ".issuetypes[$type_id].id")"
+
+    printf "Issue Summary: "; read name
+    printf "Issue Description: "; read desc
+
+    PRIORITIES='["Major", "Minor", "Critical", "Blocker", "Trivial"]'
+    echo $PRIORITIES | jq -r '. | join("\n")' | nl -v 0
+    printf "Issue Priority: "; read priority_id
+    # if ! [[ "$priority_id" =~ '^[0-9]*$' ]]; then
+    #   echo "Didn't enter priority index!" >&2
+    #   exit 1
+    # fi
+    PRIORITY="$(echo $PRIORITIES | jq -r ".[$priority_id]")"
+
+    echo "{
+    \"fields\": {
+      \"project\": { 
+        \"id\": \"$(echo $PROJECT | jq -r '.id')\"
+      },
+      \"summary\": \"$name\",
+      \"description\": \"$desc\",
+      \"issuetype\": {
+        \"id\": \"$ISSUE_TYPE\"
+      },
+      \"priority\": {
+        \"name\": \"$PRIORITY\"
+      }
+   }
+}"
     ;;
 
   # Help information
