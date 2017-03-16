@@ -150,14 +150,11 @@ case "$1" in
       "$BASENAME/rest/api/2/issue/createmeta")"
     finish_load
 
+    echo "Pick a project:"
     echo $PROJECTS |
       jq -r '.projects | map([.key, .name] | join(" ")) | join("\n")' |
       nl -v 0
-    printf "Create issue in project: "; read proj_id
-    # if ! [[ "$proj_id" =~ '^[0-9]*$' ]]; then
-    #   echo "Didn't enter project index!" >&2
-    #   exit 1
-    # fi
+    printf "Project: "; read proj_id
 
     PROJECT="$(echo $PROJECTS | jq .projects[$proj_id])"
 
@@ -165,10 +162,6 @@ case "$1" in
       jq -r '.issuetypes | map(.name) | join("\n")' |
       nl -v 0
     printf "Issue Type: "; read type_id
-    # if ! [[ "$type_id" =~ '^[0-9]*$' ]]; then
-    #   echo "Didn't enter issue type index!" >&2
-    #   exit 1
-    # fi
     ISSUE_TYPE="$(echo $PROJECT | jq -r ".issuetypes[$type_id].id")"
 
     printf "Issue Summary: "; read name
@@ -177,13 +170,10 @@ case "$1" in
     PRIORITIES='["Major", "Minor", "Critical", "Blocker", "Trivial"]'
     echo $PRIORITIES | jq -r '. | join("\n")' | nl -v 0
     printf "Issue Priority: "; read priority_id
-    # if ! [[ "$priority_id" =~ '^[0-9]*$' ]]; then
-    #   echo "Didn't enter priority index!" >&2
-    #   exit 1
-    # fi
     PRIORITY="$(echo $PRIORITIES | jq -r ".[$priority_id]")"
 
-    echo "{
+    start_load "Creating issue"
+    RESPONSE=$(curl --silent $AUTH -X POST --data "{
     \"fields\": {
       \"project\": { 
         \"id\": \"$(echo $PROJECT | jq -r '.id')\"
@@ -196,8 +186,10 @@ case "$1" in
       \"priority\": {
         \"name\": \"$PRIORITY\"
       }
-   }
-}"
+    }}" -H 'Content-Type: application/json' $BASENAME/rest/api/2/issue/)
+    finish_load
+
+    echo "Created $(tput setaf 5)$(echo $RESPONSE | jq -r '.key')$(tput sgr0)."
     ;;
 
   # Help information
