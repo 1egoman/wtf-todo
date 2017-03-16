@@ -72,24 +72,24 @@ case "$1" in
       "$BASENAME/rest/api/2/search?jql=assignee=$USERNAME")"
     finish_load
 
-      echo "WTF todo?"
-      echo
-      echo "$(tput setaf 4)PRIOR   ID       STATUS$(tput sgr0)"
-      echo $DATA | jq -r '
-      .issues
-      | to_entries
-      | map({
-        summary: .value.fields.summary,
-        priority: .value.fields.priority.name,
-        priority_id: .value.fields.priority.id,
-        id: .key | tostring,
-        key: .value.key,
-        status: .value.fields.status.name
-      })
-      | sort_by(.priority_id)
-      | map([.priority, .key, .status, .summary] | join(" | "))
-      | join("\n")
-      '
+    echo "WTF todo?"
+    echo
+    echo "$(tput setaf 4)PRIOR   ID       STATUS$(tput sgr0)"
+    echo $DATA | jq -r '
+    .issues
+    | to_entries
+    | map({
+      summary: .value.fields.summary,
+      priority: .value.fields.priority.name,
+      priority_id: .value.fields.priority.id,
+      id: .key | tostring,
+      key: .value.key,
+      status: .value.fields.status.name
+    })
+    | sort_by(.priority_id)
+    | map([.priority, .key, .status, .summary] | join(" | "))
+    | join("\n")
+    '
     ;;
 
   # Show info for a given task.
@@ -201,6 +201,7 @@ case "$1" in
     echo "wtf open ID - open task ID in the browser"
     echo "wtf start ID - start working on task ID"
     echo "wtf done ID - finish working on task ID"
+    echo "wtf create - create a new task / bug / etc..."
     echo
     echo "More info: https://github.com/1egoman/wtf-todo"
     ;;
