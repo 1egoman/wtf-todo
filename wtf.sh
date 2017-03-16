@@ -61,6 +61,39 @@ function finish_load {
   echo -ne "\r$ceol"
 }
 
+
+# Like read, only get multiline input from the editor. $1 is the initial contents of the file.
+TMP_FILE="$TMPDIR/wtf_editor_temp" # a temp file to edit in the editor
+function read_editor {
+  rm -f $TMP_FILE
+  touch $TMP_FILE
+
+  # Give instructons in the file of what to do.
+  if [[ -n "$1" ]]; then
+    echo "$1" > $TMP_FILE
+  fi
+  EDITOROUTPUT="$1"
+
+  if [[ -n "$VISUAL" ]]; then
+    while [[ "$EDITOROUTPUT" == "$1" ]]; do
+      echo "Please enter in your editor..."
+      sleep 1
+      $VISUAL $TMP_FILE
+      EDITOROUTPUT="$(cat $TMP_FILE)"
+    done
+  elif [[ -n "$EDITOR" ]]; then
+    while [[ "$EDITOROUTPUT" == "$1" ]]; do
+      echo "Please enter in your editor..."
+      sleep 1
+      $EDITOR $TMP_FILE
+      EDITOROUTPUT="$(cat $TMP_FILE)"
+    done
+  else
+    echo "NOTE: No $EDITOR variable set, just reading from stdin."
+    read EDITOROUTPUT
+  fi
+}
+
 case "$1" in
   # Show all tasks to work on
   # ie, `wtf todo`
@@ -161,18 +194,19 @@ case "$1" in
     echo $PROJECT |
       jq -r '.issuetypes | map(.name) | join("\n")' |
       nl -v 0
-    printf "Issue Type: "; read type_id
+    printf "Type: "; read type_id
     ISSUE_TYPE="$(echo $PROJECT | jq -r ".issuetypes[$type_id].id")"
 
-    printf "Issue Summary: "; read name
-    printf "Issue Description: "; read desc
+    printf "Summary: "; read name
+    printf "Description: "; read_editor "Please enter a description for $name (overwrite me!)"
+    desc="$(printf "$EDITOROUTPUT" | sed "s/\n/\\n/")"
 
     PRIORITIES='["Major", "Minor", "Critical", "Blocker", "Trivial"]'
     echo $PRIORITIES | jq -r '. | join("\n")' | nl -v 0
-    printf "Issue Priority: "; read priority_id
+    printf "Priority: "; read priority_id
     PRIORITY="$(echo $PRIORITIES | jq -r ".[$priority_id]")"
 
-    start_load "Creating issue"
+    start_load "Creating"
     RESPONSE=$(curl --silent $AUTH -X POST --data "{
     \"fields\": {
       \"project\": { 
@@ -189,6 +223,7 @@ case "$1" in
     }}" -H 'Content-Type: application/json' $BASENAME/rest/api/2/issue/)
     finish_load
 
+    echo $RESPONSE
     echo "Created $(tput setaf 5)$(echo $RESPONSE | jq -r '.key')$(tput sgr0)."
     ;;
 
