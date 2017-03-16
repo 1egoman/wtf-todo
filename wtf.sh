@@ -48,14 +48,29 @@ function move_task_to_state {
     "$BASENAME/rest/api/2/issue/$task_id/transitions?expand=transitions.fields"
 }
 
+function start_load {
+  if [[ -z "$1" ]]; then
+    printf "Loading... "
+  else
+    printf "$1..."
+  fi
+}
+
+function finish_load {
+  ceol="$(tput el)" # terminfo clr_eol
+  echo -ne "\r$ceol"
+}
+
 case "$1" in
   # Show all tasks to work on
   # ie, `wtf todo`
   ""|todo|ls|list)
+    start_load "Loading Tasks"
     DATA="$(
       curl --silent $AUTH \
       -H 'Content-Type: application/json' \
       "$BASENAME/rest/api/2/search?jql=assignee=$USERNAME")"
+    finish_load
 
       echo "WTF todo?"
       echo
@@ -80,10 +95,12 @@ case "$1" in
   # Show info for a given task.
   # ie, `wtf into EMB-60`
   i|info)
+    start_load "Loading Task"
     DATA="$(
       curl --silent $AUTH \
       -H 'Content-Type: application/json' \
       "$BASENAME/rest/api/2/issue/$2")"
+    finish_load
 
     TITLE=$(echo $DATA | jq -r .fields.summary)
     PROJECT=$(echo $DATA | jq -r .fields.project.key)
@@ -126,10 +143,12 @@ case "$1" in
     ;;
 
   c|create)
+    start_load "Loading all projects"
     PROJECTS="$(
       curl --silent $AUTH \
       -H 'Content-Type: application/json' \
       "$BASENAME/rest/api/2/issue/createmeta")"
+    finish_load
 
     echo $PROJECTS |
       jq -r '.projects | map([.key, .name] | join(" ")) | join("\n")' |
