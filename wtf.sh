@@ -125,7 +125,7 @@ case "$1" in
     move_task_to_state $2 "To Do"
     ;;
   s|start)
-    move_task_to_state $2 "In Progress"
+    move_task_to_state $2 "In Development"
     ;;
   d|"done"|finish)
     move_task_to_state $2 "QA"
